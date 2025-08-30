@@ -1,0 +1,94 @@
+version: '3.8'
+
+services:
+  app:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/lark_ai_influencer
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend/src:/app/src
+      - video_storage:/app/storage/videos
+      - audio_storage:/app/storage/audio
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://app:3000/api
+    depends_on:
+      - app
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: lark_ai_influencer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database/migrations:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  content-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: node src/workers/content-processor.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/lark_ai_influencer
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - video_storage:/app/storage/videos
+      - audio_storage:/app/storage/audio
+    restart: unless-stopped
+
+  video-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command: node src/workers/video-processor.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/lark_ai_influencer
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - video_storage:/app/storage/videos
+      - audio_storage:/app/storage/audio
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  video_storage:
+  audio_storage:
