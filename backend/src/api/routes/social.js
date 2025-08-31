@@ -353,6 +353,32 @@ router.post('/publish-all', async (req, res) => {
   }
 });
 
+// Helper functions for platform status checks
+const checkYouTubeStatus = () => {
+  return {
+    connected: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET),
+    client_id: process.env.YOUTUBE_CLIENT_ID ? process.env.YOUTUBE_CLIENT_ID.substring(0, 20) + '...' : null,
+    channel_id: process.env.YOUTUBE_CHANNEL_ID || null,
+    configured: !!(process.env.YOUTUBE_CLIENT_ID && process.env.YOUTUBE_CLIENT_SECRET && process.env.YOUTUBE_CHANNEL_ID)
+  };
+};
+
+const checkLinkedInStatus = () => {
+  return {
+    connected: !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET),
+    client_id: process.env.LINKEDIN_CLIENT_ID || null,
+    configured: !!(process.env.LINKEDIN_CLIENT_ID && process.env.LINKEDIN_CLIENT_SECRET)
+  };
+};
+
+const checkFacebookStatus = () => {
+  return {
+    connected: !!(process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET),
+    app_id: process.env.FACEBOOK_APP_ID || null,
+    configured: !!(process.env.FACEBOOK_APP_ID && process.env.FACEBOOK_APP_SECRET)
+  };
+};
+
 /**
  * GET /api/social/platforms/status
  * Get status of all social media platform integrations
@@ -360,12 +386,12 @@ router.post('/publish-all', async (req, res) => {
 router.get('/platforms/status', async (req, res) => {
   try {
     const platformStatus = {
-      youtube: await this.checkYouTubeStatus(),
-      linkedin: await this.checkLinkedInStatus(),
-      facebook: await this.checkFacebookStatus()
+      youtube: checkYouTubeStatus(),
+      linkedin: checkLinkedInStatus(),
+      facebook: checkFacebookStatus()
     };
 
-    const overallHealthy = Object.values(platformStatus).every(status => status.connected);
+    const overallHealthy = Object.values(platformStatus).some(status => status.connected);
 
     res.json({
       success: true,
