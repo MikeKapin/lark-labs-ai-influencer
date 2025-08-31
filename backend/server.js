@@ -93,6 +93,16 @@ app.listen(PORT, async () => {
     await database.connect();
     console.log('📊 Database connected successfully');
     
+    // Run database migration if needed
+    try {
+      const migrate = require('./src/database/migrate');
+      console.log('🔄 Checking database schema...');
+      await migrate();
+      console.log('✅ Database schema ready');
+    } catch (migrationError) {
+      console.log('ℹ️ Migration skipped (tables may already exist):', migrationError.message);
+    }
+    
     // Start scheduled jobs
     startScheduledJobs();
     console.log('⏰ Scheduled jobs started');
