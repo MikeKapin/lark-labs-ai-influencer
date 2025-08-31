@@ -118,19 +118,49 @@ router.get('/setup-help', (req, res) => {
  * Start YouTube OAuth flow
  */
 router.get('/youtube/auth', (req, res) => {
-  const scopes = [
-    'https://www.googleapis.com/auth/youtube.upload',
-    'https://www.googleapis.com/auth/youtube.force-ssl'
-  ];
+  try {
+    const baseUrl = process.env.RAILWAY_STATIC_URL || 'https://web-production-7385b.up.railway.app';
+    const redirectUri = `${baseUrl}/api/social/youtube/callback`;
+    
+    const scopes = [
+      'https://www.googleapis.com/auth/youtube.upload',
+      'https://www.googleapis.com/auth/youtube.force-ssl'
+    ];
 
-  const authUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: scopes,
-    prompt: 'consent'
-  });
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: scopes,
+      prompt: 'consent'
+    });
 
-  logger.socialMedia('YouTube OAuth flow started', { authUrl });
-  res.redirect(authUrl);
+    res.json({
+      success: true,
+      message: 'YouTube OAuth Setup Required',
+      auth_url: authUrl,
+      instructions: [
+        "1. First, add this redirect URI to your Google Cloud Console:",
+        redirectUri,
+        "2. Go to Google Cloud Console → Your Project → APIs & Services → Credentials",
+        "3. Select your OAuth 2.0 Client ID",
+        "4. Add the redirect URI above to 'Authorized redirect URIs'",
+        "5. Save changes in Google Cloud Console",
+        "6. Then click the auth_url below to authorize:",
+        authUrl
+      ],
+      redirect_uri_needed: redirectUri,
+      google_console: "https://console.cloud.google.com/apis/credentials",
+      oauth_client_redirect_uri: redirectUri,
+      scopes_requested: scopes,
+      note: "Make sure to add your email as a test user if the app is in testing mode"
+    });
+  } catch (error) {
+    logger.error('YouTube OAuth setup error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate YouTube OAuth setup',
+      message: error.message
+    });
+  }
 });
 
 /**
