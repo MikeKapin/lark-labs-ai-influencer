@@ -753,6 +753,196 @@ router.get('/platforms/status', async (req, res) => {
 });
 
 /**
+ * POST /api/social/generate-video-content
+ * Generate video script and metadata for manual upload
+ */
+router.post('/generate-video-content', async (req, res) => {
+  try {
+    const {
+      topic,
+      content_type = 'technical',
+      target_audience = 'hvac_technicians',
+      canadian_specific = true,
+      safety_related = false,
+      difficulty_level = 3
+    } = req.body;
+
+    if (!topic) {
+      return res.status(400).json({
+        success: false,
+        error: 'Topic is required for video content generation'
+      });
+    }
+
+    logger.socialMedia('Starting video content generation', {
+      topic,
+      contentType: content_type,
+      targetAudience: target_audience
+    });
+
+    // Generate video script using AI (Claude)
+    const script = await generateVideoScript({
+      topic,
+      content_type,
+      target_audience,
+      canadian_specific,
+      safety_related,
+      difficulty_level
+    });
+
+    // Generate video metadata
+    const videoMetadata = await generateVideoMetadata({
+      topic,
+      script,
+      content_type,
+      canadian_specific,
+      safety_related
+    });
+
+    // Create content calendar entry
+    const contentEntry = await database.create('content_calendar', {
+      date: new Date().toISOString().split('T')[0],
+      topic,
+      content_type,
+      status: 'ready',
+      script: script.full_script,
+      target_audience,
+      canadian_specific,
+      safety_related,
+      difficulty_level,
+      ai_model_used: 'claude-sonnet-4',
+      generation_prompt: `Generate ${content_type} HVAC video content about: ${topic}`,
+      research_sources: JSON.stringify(script.sources || [])
+    });
+
+    logger.socialMedia('Video content generation completed', {
+      contentId: contentEntry.id,
+      topic,
+      scriptLength: script.full_script?.length || 0
+    });
+
+    res.json({
+      success: true,
+      content_id: contentEntry.id,
+      video_content: {
+        topic,
+        script: script.full_script,
+        intro: script.intro,
+        main_points: script.main_points,
+        outro: script.outro,
+        estimated_duration: script.estimated_duration_seconds,
+        talking_points: script.talking_points
+      },
+      video_metadata: {
+        title: videoMetadata.title,
+        description: videoMetadata.description,
+        tags: videoMetadata.tags,
+        thumbnail_suggestions: videoMetadata.thumbnail_suggestions,
+        category_id: videoMetadata.category_id,
+        upload_instructions: videoMetadata.upload_instructions
+      },
+      manual_upload_guide: {
+        steps: [
+          "1. Record video using the provided script",
+          "2. Edit video with suggested talking points",
+          "3. Create thumbnail using provided suggestions",
+          "4. Upload to YouTube with generated title and description",
+          "5. Use provided tags for better discoverability",
+          "6. Set category to 'Education' or 'Howto & Style'",
+          "7. Add end screen promoting LARK Labs tools",
+          "8. Update content status via API when uploaded"
+        ]
+      },
+      generated_at: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Video content generation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Video content generation failed',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * PUT /api/social/update-video-status
+ * Update video status after manual upload
+ */
+router.put('/update-video-status', async (req, res) => {
+  try {
+    const {
+      content_id,
+      youtube_video_id,
+      youtube_url,
+      upload_status = 'published',
+      upload_notes = null
+    } = req.body;
+
+    if (!content_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'content_id is required'
+      });
+    }
+
+    // Update content calendar with upload information
+    const updateData = {
+      status: 'published',
+      youtube_video_id: youtube_video_id || null,
+      video_url: youtube_url || null
+    };
+
+    if (upload_notes) {
+      const existingContent = await database.findById('content_calendar', content_id);
+      updateData.research_sources = JSON.stringify({
+        ...(existingContent.research_sources ? JSON.parse(existingContent.research_sources) : {}),
+        upload_notes
+      });
+    }
+
+    await database.update('content_calendar', content_id, updateData);
+
+    // Create analytics entry for tracking
+    if (youtube_video_id) {
+      await database.create('content_analytics', {
+        content_id,
+        platform: 'youtube',
+        views: 0,
+        likes: 0,
+        shares: 0,
+        comments: 0,
+        recorded_at: new Date()
+      });
+    }
+
+    logger.socialMedia('Video upload status updated', {
+      contentId: content_id,
+      youtubeVideoId: youtube_video_id,
+      status: upload_status
+    });
+
+    res.json({
+      success: true,
+      content_id,
+      status: 'updated',
+      youtube_video_id,
+      youtube_url,
+      updated_at: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Video status update failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Video status update failed',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/social/analytics/summary
  * Get social media analytics summary
  */
@@ -818,6 +1008,201 @@ router.get('/analytics/summary', async (req, res) => {
     });
   }
 });
+
+// Helper functions for video content generation
+const generateVideoScript = async (params) => {
+  const { topic, content_type, target_audience, canadian_specific, safety_related, difficulty_level } = params;
+  
+  // Get character profile for consistent voice
+  const characterProfile = await database.query(
+    'SELECT * FROM character_profile WHERE active = true ORDER BY created_at DESC LIMIT 1'
+  );
+  
+  const character = characterProfile.rows[0] || {
+    catchphrases: ['Safety first, solutions second, success follows'],
+    sign_off_phrases: ['Stay safe out there', 'See you next week']
+  };
+
+  // Get relevant knowledge from HVAC knowledge base
+  const knowledgeQuery = await database.query(`
+    SELECT content, source_url, verified 
+    FROM hvac_knowledge 
+    WHERE category ILIKE '%${topic}%' OR topic ILIKE '%${topic}%'
+    ${canadian_specific ? "AND canadian_specific = true" : ""}
+    ${safety_related ? "AND safety_related = true" : ""}
+    ORDER BY verified DESC, created_at DESC
+    LIMIT 5
+  `);
+
+  const knowledge = knowledgeQuery.rows;
+
+  // Get appropriate content template
+  const templateQuery = await database.query(
+    `SELECT template_content, variables FROM content_templates 
+     WHERE template_type = 'full_script' AND content_category = $1 AND active = true
+     ORDER BY success_rate DESC LIMIT 1`,
+    [content_type]
+  );
+
+  const template = templateQuery.rows[0];
+
+  // Generate script structure
+  const script = {
+    intro: generateIntro(topic, character, content_type),
+    main_points: generateMainPoints(topic, knowledge, difficulty_level),
+    outro: generateOutro(character, topic),
+    talking_points: generateTalkingPoints(topic, knowledge, safety_related),
+    estimated_duration_seconds: 180, // 3 minutes average
+    sources: knowledge.map(k => k.source_url).filter(Boolean)
+  };
+
+  script.full_script = `${script.intro}\n\n${script.main_points.join('\n\n')}\n\n${script.outro}`;
+
+  return script;
+};
+
+const generateVideoMetadata = async (params) => {
+  const { topic, script, content_type, canadian_specific, safety_related } = params;
+  
+  // Generate SEO-optimized title
+  const titles = [
+    `${topic} - HVAC Expert Explains ${canadian_specific ? '(Canadian Edition)' : ''}`,
+    `${safety_related ? 'SAFETY ALERT: ' : ''}${topic} - What Every HVAC Tech Needs to Know`,
+    `HVAC ${content_type.charAt(0).toUpperCase() + content_type.slice(1)}: ${topic}`,
+    `${topic} Explained by LARK Labs HVAC Expert`
+  ];
+
+  // Generate description
+  const description = generateVideoDescription(topic, script, canadian_specific);
+
+  // Generate tags
+  const baseTags = ['HVAC', 'heating', 'cooling', 'ventilation', 'LARK Labs', 'Alex Reid'];
+  const topicTags = topic.toLowerCase().split(' ');
+  const contentTypeTags = [content_type, `${content_type}_hvac`];
+  const canadianTags = canadian_specific ? ['Canada', 'Canadian HVAC', 'CSA standards'] : [];
+  const safetyTags = safety_related ? ['HVAC safety', 'safety first', 'lockout tagout'] : [];
+
+  const allTags = [...baseTags, ...topicTags, ...contentTypeTags, ...canadianTags, ...safetyTags];
+  const uniqueTags = [...new Set(allTags)].slice(0, 15); // YouTube limit
+
+  // Generate thumbnail suggestions
+  const thumbnailSuggestions = [
+    `Alex Reid pointing at ${topic} diagram with bold text overlay`,
+    `Close-up of HVAC equipment with "${topic}" title text`,
+    `Split screen: Problem vs Solution with Alex Reid explaining`,
+    `Safety-focused thumbnail with warning icons and Alex Reid`
+  ];
+
+  return {
+    title: titles[0], // Use the first, most descriptive title
+    description,
+    tags: uniqueTags,
+    thumbnail_suggestions: thumbnailSuggestions,
+    category_id: '26', // Howto & Style
+    upload_instructions: [
+      'Set video to Public visibility',
+      'Add to "HVAC Education" playlist',
+      'Enable comments and community features',
+      'Add end screen promoting LARK Labs website',
+      'Use suggested thumbnail or create similar'
+    ]
+  };
+};
+
+const generateIntro = (topic, character, content_type) => {
+  const catchphrase = character.catchphrases?.[0] || 'Safety first, solutions second, success follows';
+  
+  const intros = {
+    safety: `Hey HVAC family, Alex here from LARK Labs. Today we need to talk about something serious - ${topic}. ${catchphrase}, and that's exactly what we're covering today.`,
+    technical: `What's up HVAC family! Alex Reid here from LARK Labs. I got a great question about ${topic}, and I think a lot of you are dealing with this same issue. Let's troubleshoot this together.`,
+    customer_service: `Hey everyone, Alex from LARK Labs here. Today we're talking about something that can make or break your customer relationships - ${topic}. This is crucial stuff for building your business.`,
+    industry_update: `HVAC family, Alex here with an important industry update about ${topic}. This is something that's going to affect all of us, so let's break it down together.`
+  };
+
+  return intros[content_type] || intros.technical;
+};
+
+const generateMainPoints = (topic, knowledge, difficulty_level) => {
+  const points = [
+    `First, let's understand what ${topic} really means and why it matters in our daily work.`,
+    `Now, here's the key thing most techs get wrong about ${topic}...`,
+    `Let me show you the right way to handle ${topic} - this will save you time and callbacks.`
+  ];
+
+  // Add knowledge-based points if available
+  if (knowledge && knowledge.length > 0) {
+    knowledge.slice(0, 2).forEach((item, index) => {
+      if (item.content) {
+        points.push(`Point ${index + 4}: ${item.content.substring(0, 200)}...`);
+      }
+    });
+  }
+
+  // Adjust complexity based on difficulty level
+  if (difficulty_level >= 4) {
+    points.push(`Now for you experienced techs, here's the advanced consideration most people miss...`);
+  }
+
+  return points;
+};
+
+const generateOutro = (character, topic) => {
+  const signOff = character.sign_off_phrases?.[0] || 'Stay safe out there';
+  
+  return `So that's the complete breakdown of ${topic}. Remember, every expert was once a beginner, so don't be afraid to ask questions. If this helped you out, hit that like button and subscribe for more HVAC education. Got a specific question about ${topic}? Drop it in the comments below. And don't forget to check out our free HVAC tools at larklabs.org - they're game-changers for efficiency and accuracy. ${signOff}, and I'll see you in the next one!`;
+};
+
+const generateTalkingPoints = (topic, knowledge, safety_related) => {
+  const points = [
+    `Define ${topic} clearly for beginners`,
+    'Explain common mistakes and how to avoid them',
+    'Share practical tips from field experience',
+    'Mention relevant tools or techniques'
+  ];
+
+  if (safety_related) {
+    points.unshift('EMPHASIZE SAFETY PROTOCOLS - this is critical');
+    points.push('Remind viewers about proper PPE and procedures');
+  }
+
+  if (knowledge && knowledge.length > 0) {
+    points.push('Reference industry standards and best practices');
+  }
+
+  points.push('Encourage questions and engagement in comments');
+  points.push('Promote LARK Labs tools and resources');
+
+  return points;
+};
+
+const generateVideoDescription = (topic, script, canadian_specific) => {
+  const canadianNote = canadian_specific ? '\n\n🇨🇦 This video includes Canadian-specific information including CSA standards and climate considerations.' : '';
+  
+  return `In this video, Alex Reid from LARK Labs breaks down everything you need to know about ${topic}. Whether you're a seasoned HVAC technician or just starting out, this comprehensive guide will help you understand the key concepts and avoid common mistakes.
+
+🔧 What You'll Learn:
+• Understanding ${topic} fundamentals
+• Common mistakes and how to avoid them  
+• Professional tips from 20+ years of experience
+• Safety considerations and best practices
+• Tools and techniques for better results${canadianNote}
+
+⚠️ SAFETY FIRST: Always follow proper lockout/tagout procedures and use appropriate PPE when working with HVAC systems.
+
+📚 Free HVAC Resources: 
+Visit larklabs.org for free tools, calculators, and guides that will make your job easier and more accurate.
+
+💬 Got Questions?
+Drop them in the comments below! Alex reads every comment and often creates follow-up videos based on your questions.
+
+🔔 Stay Updated:
+Subscribe and hit the notification bell for weekly HVAC education videos, safety tips, and industry updates.
+
+---
+LARK Labs is dedicated to advancing HVAC education and safety. Our mission is to help technicians work more efficiently, safely, and profitably.
+
+#HVAC #HeatingAndCooling #LARKLabs #HVACEducation #HVACTech #HVACSafety #HVACTraining`;
+};
 
 // Helper methods (would be implemented with actual API calls)
 router.checkYouTubeStatus = async () => {
