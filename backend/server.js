@@ -31,7 +31,11 @@ app.use(helmet());
 // CORS configuration with multiple origins support
 const allowedOrigins = process.env.CORS_ORIGIN 
   ? process.env.CORS_ORIGIN.split(',').map(origin => origin.trim())
-  : ['http://localhost:5173'];
+  : [
+      'http://localhost:5173',
+      'https://lark-labs-ai-influencer-5988.vercel.app',
+      'https://lark-labs-ai-influencer.vercel.app'
+    ];
 
 app.use(cors({
   origin: function (origin, callback) {
