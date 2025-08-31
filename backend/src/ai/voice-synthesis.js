@@ -1,4 +1,4 @@
-const { ElevenLabsApi, ElevenLabsConfiguration } = require('@elevenlabs/elevenlabs-js');
+const ElevenLabs = require('@elevenlabs/elevenlabs-js');
 const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
@@ -13,11 +13,10 @@ class VoiceSynthesis {
       throw new Error('ELEVENLABS_API_KEY environment variable is required');
     }
 
-    // Initialize ElevenLabs client
-    const config = new ElevenLabsConfiguration({
+    // Initialize ElevenLabs client with v2 API
+    this.client = ElevenLabs({
       apiKey: process.env.ELEVENLABS_API_KEY
     });
-    this.client = new ElevenLabsApi(config);
 
     // Alex Reid voice configuration
     this.alexReidVoice = {
