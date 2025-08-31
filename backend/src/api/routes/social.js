@@ -202,6 +202,13 @@ router.get('/youtube/callback', async (req, res) => {
     const baseUrl = process.env.RAILWAY_STATIC_URL || 'https://web-production-7385b.up.railway.app';
     const redirectUri = `${baseUrl}/api/social/youtube/callback`;
     
+    logger.info('YouTube OAuth token exchange attempt', {
+      code: code ? 'present' : 'missing',
+      redirectUri,
+      clientId: process.env.YOUTUBE_CLIENT_ID ? 'present' : 'missing',
+      clientSecret: process.env.YOUTUBE_CLIENT_SECRET ? 'present' : 'missing'
+    });
+    
     // Create a new OAuth client with the correct redirect URI for token exchange
     const tokenExchangeClient = new google.auth.OAuth2(
       process.env.YOUTUBE_CLIENT_ID,
@@ -233,11 +240,20 @@ router.get('/youtube/callback', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('YouTube token exchange failed:', error);
+    logger.error('YouTube token exchange failed:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: {
+        url: error.config?.url,
+        data: error.config?.data
+      }
+    });
     res.status(500).json({
       success: false,
       error: 'Failed to exchange authorization code for tokens',
-      message: error.message
+      message: error.message,
+      details: error.response?.data || error.message
     });
   }
 });
