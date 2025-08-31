@@ -37,17 +37,9 @@ const allowedOrigins = process.env.CORS_ORIGIN
       'https://lark-labs-ai-influencer.vercel.app'
     ];
 
+// Temporary: Allow all origins for testing
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true,
   credentials: true
 }));
 
