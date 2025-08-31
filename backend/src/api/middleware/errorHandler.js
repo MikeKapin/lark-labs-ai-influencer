@@ -71,6 +71,12 @@ const errorHandler = (err, req, res, next) => {
     error = { message, statusCode: 429 };
   }
 
+  // Ensure CORS headers are included in error responses
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
   res.status(error.statusCode || 500).json({
     success: false,
     error: error.message || 'Server Error',
