@@ -491,7 +491,27 @@ router.post('/linkedin/post', async (req, res) => {
       });
     }
 
-    const { access_token } = JSON.parse(tokenResult.rows[0].config_value);
+    // Debug: Check what's actually stored in the database
+    const rawTokenValue = tokenResult.rows[0].config_value;
+    logger.info('Stored token value type and preview', {
+      type: typeof rawTokenValue,
+      isString: typeof rawTokenValue === 'string',
+      preview: rawTokenValue ? String(rawTokenValue).substring(0, 50) + '...' : 'null'
+    });
+
+    let access_token;
+    try {
+      const parsedToken = JSON.parse(rawTokenValue);
+      access_token = parsedToken.access_token;
+      logger.info('Token parsed successfully', { hasAccessToken: !!access_token });
+    } catch (parseError) {
+      logger.error('Token parsing failed', { 
+        parseError: parseError.message,
+        rawValue: typeof rawTokenValue,
+        preview: String(rawTokenValue).substring(0, 100)
+      });
+      throw new Error(`Invalid token format in database: ${parseError.message}`);
+    }
 
     // Create LinkedIn post via API
     const linkedinPost = {
