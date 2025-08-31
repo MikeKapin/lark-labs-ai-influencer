@@ -202,7 +202,7 @@ router.get('/youtube/callback', async (req, res) => {
     const baseUrl = process.env.RAILWAY_STATIC_URL || 'https://web-production-7385b.up.railway.app';
     const redirectUri = `${baseUrl}/api/social/youtube/callback`;
     
-    logger.info('YouTube OAuth token exchange attempt', {
+    logger.info('YouTube OAuth token exchange attempt - v2', {
       code: code ? 'present' : 'missing',
       redirectUri,
       clientId: process.env.YOUTUBE_CLIENT_ID ? 'present' : 'missing',
