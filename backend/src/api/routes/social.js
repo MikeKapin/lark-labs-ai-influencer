@@ -834,34 +834,21 @@ router.put('/update-video-status', async (req, res) => {
       });
     }
 
-    // Update content calendar with upload information
-    const updateData = {
-      status: 'published',
-      youtube_video_id: youtube_video_id || null,
-      video_url: youtube_url || null
-    };
+    // Simplified database update using direct query
+    await database.query(
+      `UPDATE content_calendar 
+       SET status = $1, youtube_video_id = $2, video_url = $3, updated_at = NOW()
+       WHERE id = $4`,
+      ['published', youtube_video_id, youtube_url, content_id]
+    );
 
-    if (upload_notes) {
-      const existingContent = await database.findById('content_calendar', content_id);
-      updateData.research_sources = JSON.stringify({
-        ...(existingContent.research_sources ? JSON.parse(existingContent.research_sources) : {}),
-        upload_notes
-      });
-    }
-
-    await database.update('content_calendar', content_id, updateData);
-
-    // Create analytics entry for tracking
+    // Create analytics entry if YouTube video ID provided
     if (youtube_video_id) {
-      await database.create('content_analytics', {
-        content_id,
-        platform: 'youtube',
-        views: 0,
-        likes: 0,
-        shares: 0,
-        comments: 0,
-        recorded_at: new Date()
-      });
+      await database.query(
+        `INSERT INTO content_analytics (content_id, platform, views, likes, shares, comments, recorded_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [content_id, 'youtube', 0, 0, 0, 0, new Date()]
+      );
     }
 
     logger.socialMedia('Video upload status updated', {
