@@ -44,7 +44,18 @@ class AlexReidCharacter {
       ]
     };
 
-    this.initializeCharacter();
+    // Initialize character profile lazily - will be called when first needed
+    this.initialized = false;
+  }
+
+  /**
+   * Ensure character is initialized (lazy initialization)
+   */
+  async ensureInitialized() {
+    if (!this.initialized) {
+      await this.initializeCharacter();
+      this.initialized = true;
+    }
   }
 
   /**
@@ -66,7 +77,15 @@ class AlexReidCharacter {
       }
     } catch (error) {
       logger.error('Failed to initialize character profile:', error);
-      throw error;
+      
+      // Use default values if database isn't ready
+      this.characterProfile = {
+        name: 'Alex Reid',
+        version: '1.0.0',
+        personality: 'friendly_expert',
+        active: true
+      };
+      logger.characterEngine('Using fallback character profile due to database error');
     }
   }
 
