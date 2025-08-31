@@ -23,8 +23,16 @@ async function migrate() {
 
     console.log('📋 Executing database schema...');
     
-    // Execute schema
-    await pool.query(schema);
+    // Execute schema with CREATE IF NOT EXISTS handling
+    try {
+      await pool.query(schema);
+    } catch (error) {
+      if (error.message.includes('already exists')) {
+        console.log('ℹ️ Tables already exist - skipping schema creation');
+      } else {
+        throw error; // Re-throw if it's a different error
+      }
+    }
 
     console.log('✅ Database schema created successfully!');
     console.log('📊 Tables created:');
