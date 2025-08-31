@@ -1,4 +1,4 @@
-const ElevenLabs = require('elevenlabs');
+const { ElevenLabs } = require('@elevenlabs/elevenlabs-js');
 const fs = require('fs').promises;
 const path = require('path');
 const logger = require('../utils/logger');
