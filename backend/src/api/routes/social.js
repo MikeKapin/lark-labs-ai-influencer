@@ -774,106 +774,37 @@ router.get('/platforms/status', async (req, res) => {
  */
 router.post('/generate-video-content', async (req, res) => {
   try {
-    const {
-      topic,
-      content_type = 'technical',
-      target_audience = 'hvac_technicians',
-      canadian_specific = true,
-      safety_related = false,
-      difficulty_level = 3
-    } = req.body;
+    const { topic = 'Test Topic' } = req.body;
 
-    if (!topic) {
-      return res.status(400).json({
-        success: false,
-        error: 'Topic is required for video content generation'
-      });
-    }
-
-    logger.socialMedia('Starting video content generation', {
-      topic,
-      contentType: content_type,
-      targetAudience: target_audience
-    });
-
-    // Generate video script using AI (Claude)
-    const script = await generateVideoScript({
-      topic,
-      content_type,
-      target_audience,
-      canadian_specific,
-      safety_related,
-      difficulty_level
-    });
-
-    // Generate video metadata
-    const videoMetadata = await generateVideoMetadata({
-      topic,
-      script,
-      content_type,
-      canadian_specific,
-      safety_related
-    });
-
-    // Create content calendar entry
-    const contentEntry = await database.create('content_calendar', {
-      date: new Date().toISOString().split('T')[0],
-      topic,
-      content_type,
-      status: 'ready',
-      script: script.full_script,
-      target_audience,
-      canadian_specific,
-      safety_related,
-      difficulty_level,
-      ai_model_used: 'claude-sonnet-4',
-      generation_prompt: `Generate ${content_type} HVAC video content about: ${topic}`,
-      research_sources: JSON.stringify(script.sources || [])
-    });
-
-    logger.socialMedia('Video content generation completed', {
-      contentId: contentEntry.id,
-      topic,
-      scriptLength: script.full_script?.length || 0
-    });
-
+    // Simplified mock response to test if route works
     res.json({
       success: true,
-      content_id: contentEntry.id,
+      message: 'Video content generation endpoint is working!',
+      mock: true,
+      topic,
       video_content: {
         topic,
-        script: script.full_script,
-        intro: script.intro,
-        main_points: script.main_points,
-        outro: script.outro,
-        estimated_duration: script.estimated_duration_seconds,
-        talking_points: script.talking_points
+        script: `Hey HVAC family, Alex here from LARK Labs. Today we're talking about ${topic}. This is a mock response to test the endpoint.`,
+        estimated_duration: 180,
+        talking_points: [`Explain ${topic}`, 'Share practical tips', 'Promote LARK Labs tools']
       },
       video_metadata: {
-        title: videoMetadata.title,
-        description: videoMetadata.description,
-        tags: videoMetadata.tags,
-        thumbnail_suggestions: videoMetadata.thumbnail_suggestions,
-        category_id: videoMetadata.category_id,
-        upload_instructions: videoMetadata.upload_instructions
+        title: `${topic} - HVAC Expert Explains`,
+        description: `Learn about ${topic} with Alex Reid from LARK Labs`,
+        tags: ['HVAC', topic.toLowerCase(), 'LARK Labs'],
+        category_id: '26'
       },
       manual_upload_guide: {
         steps: [
           "1. Record video using the provided script",
-          "2. Edit video with suggested talking points",
-          "3. Create thumbnail using provided suggestions",
-          "4. Upload to YouTube with generated title and description",
-          "5. Use provided tags for better discoverability",
-          "6. Set category to 'Education' or 'Howto & Style'",
-          "7. Add end screen promoting LARK Labs tools",
-          "8. Update content status via API when uploaded"
+          "2. Upload to YouTube with generated metadata",
+          "3. Update status via API when uploaded"
         ]
       },
       generated_at: new Date().toISOString()
     });
 
   } catch (error) {
-    logger.error('Video content generation failed:', error);
     res.status(500).json({
       success: false,
       error: 'Video content generation failed',
