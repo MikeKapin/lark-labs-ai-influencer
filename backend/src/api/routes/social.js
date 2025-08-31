@@ -18,6 +18,22 @@ const router = express.Router();
  */
 
 /**
+ * GET /api/social/test-new-routes
+ * Test if new routes are working
+ */
+router.get('/test-new-routes', (req, res) => {
+  res.json({
+    success: true,
+    message: 'New routes are working!',
+    available_endpoints: [
+      'POST /api/social/generate-video-content',
+      'PUT /api/social/update-video-status'
+    ],
+    timestamp: new Date().toISOString()
+  });
+});
+
+/**
  * GET /api/social/status
  * Check social media integration status
  */
