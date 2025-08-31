@@ -510,6 +510,13 @@ router.post('/linkedin/post', async (req, res) => {
       }
     };
 
+    // Debug: Log the request details (without exposing full token)
+    logger.info('LinkedIn API request details', {
+      hasToken: !!access_token,
+      tokenPrefix: access_token ? access_token.substring(0, 10) + '...' : 'none',
+      postText: text.substring(0, 50) + '...'
+    });
+
     // Post to LinkedIn API
     const linkedinResponse = await axios.post('https://api.linkedin.com/v2/ugcPosts', linkedinPost, {
       headers: {
@@ -517,6 +524,12 @@ router.post('/linkedin/post', async (req, res) => {
         'Content-Type': 'application/json',
         'X-Restli-Protocol-Version': '2.0.0'
       }
+    });
+
+    logger.info('LinkedIn API response success', {
+      statusCode: linkedinResponse.status,
+      hasData: !!linkedinResponse.data,
+      responseId: linkedinResponse.data?.id
     });
 
     const actualPost = {
@@ -546,11 +559,19 @@ router.post('/linkedin/post', async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('LinkedIn post failed:', error);
+    logger.error('LinkedIn post failed:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      hasToken: !!error.config?.headers?.Authorization
+    });
+    
     res.status(500).json({
       success: false,
       error: 'LinkedIn post failed',
-      message: error.message
+      message: error.message,
+      details: error.response?.data || 'No additional details available'
     });
   }
 });
