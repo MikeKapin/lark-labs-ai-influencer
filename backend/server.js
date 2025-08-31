@@ -83,20 +83,24 @@ process.on('SIGINT', async () => {
 
 // Start server
 app.listen(PORT, async () => {
-  logger.info(`🚀 LARK Labs AI Influencer Backend running on port ${PORT}`);
+  console.log(`🚀 LARK Labs AI Influencer Backend running on port ${PORT}`);
+  console.log(`📍 Working directory: ${process.cwd()}`);
+  console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`🔗 DATABASE_URL: ${process.env.DATABASE_URL ? 'SET' : 'MISSING'}`);
   
   try {
     // Initialize database connection
     await database.connect();
-    logger.info('📊 Database connected successfully');
+    console.log('📊 Database connected successfully');
     
     // Start scheduled jobs
     startScheduledJobs();
-    logger.info('⏰ Scheduled jobs started');
+    console.log('⏰ Scheduled jobs started');
     
-    logger.info('🤖 Alex Reid AI system ready');
+    console.log('🤖 Alex Reid AI system ready');
   } catch (error) {
-    logger.error('Failed to initialize application:', error);
+    console.error('❌ Failed to initialize application:', error);
+    console.error('Stack trace:', error.stack);
     process.exit(1);
   }
 });
