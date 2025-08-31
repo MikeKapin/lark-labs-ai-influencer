@@ -19,6 +19,48 @@ const router = express.Router();
  */
 
 /**
+ * GET /api/social/setup-help
+ * Shows exact OAuth setup instructions
+ */
+router.get('/setup-help', (req, res) => {
+  const baseUrl = 'https://web-production-7385b.up.railway.app';
+  
+  res.json({
+    message: "OAuth Setup Instructions",
+    youtube: {
+      oauth_client_redirect_uri: `${baseUrl}/api/social/youtube/callback`,
+      instructions: [
+        "1. Go to Google Cloud Console → APIs & Services → Credentials",
+        "2. Click your OAuth 2.0 Client ID",
+        "3. Add this EXACT redirect URI: " + `${baseUrl}/api/social/youtube/callback`,
+        "4. Save changes"
+      ],
+      test_url: `${baseUrl}/api/social/youtube/auth`
+    },
+    linkedin: {
+      oauth_redirect_uri: `${baseUrl}/api/social/linkedin/callback`,
+      instructions: [
+        "1. Go to LinkedIn Developer Portal → Your App → Auth tab", 
+        "2. Add this EXACT redirect URI: " + `${baseUrl}/api/social/linkedin/callback`,
+        "3. Save changes"
+      ],
+      test_url: `${baseUrl}/api/social/linkedin/auth`
+    },
+    current_credentials: {
+      youtube: {
+        client_id: process.env.YOUTUBE_CLIENT_ID ? "SET" : "MISSING",
+        client_secret: process.env.YOUTUBE_CLIENT_SECRET ? "SET" : "MISSING", 
+        channel_id: process.env.YOUTUBE_CHANNEL_ID || "MISSING"
+      },
+      linkedin: {
+        client_id: process.env.LINKEDIN_CLIENT_ID || "MISSING",
+        client_secret: process.env.LINKEDIN_CLIENT_SECRET ? "SET" : "MISSING"
+      }
+    }
+  });
+});
+
+/**
  * GET /api/social/youtube/auth
  * Start YouTube OAuth flow
  */
