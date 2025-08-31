@@ -1,11 +1,14 @@
 const winston = require('winston');
 const path = require('path');
 
-// Create logs directory if it doesn't exist
-const fs = require('fs');
-const logDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
+// Create logs directory if it doesn't exist (only in development)
+let logDir;
+if (process.env.NODE_ENV !== 'production') {
+  const fs = require('fs');
+  logDir = path.join(__dirname, '../../logs');
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
 }
 
 // Custom format for console output
@@ -33,22 +36,24 @@ const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   format: fileFormat,
   defaultMeta: { service: 'lark-ai-backend' },
-  transports: [
-    // Error log file
-    new winston.transports.File({
-      filename: path.join(logDir, 'error.log'),
-      level: 'error',
-      maxsize: 10 * 1024 * 1024, // 10MB
-      maxFiles: 5,
-    }),
-    // Combined log file
-    new winston.transports.File({
-      filename: path.join(logDir, 'combined.log'),
-      maxsize: 10 * 1024 * 1024, // 10MB
-      maxFiles: 5,
-    }),
-  ],
+  transports: [],
 });
+
+// Add file transports only in development
+if (process.env.NODE_ENV !== 'production' && logDir) {
+  logger.add(new winston.transports.File({
+    filename: path.join(logDir, 'error.log'),
+    level: 'error',
+    maxsize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 5,
+  }));
+  
+  logger.add(new winston.transports.File({
+    filename: path.join(logDir, 'combined.log'),
+    maxsize: 10 * 1024 * 1024, // 10MB
+    maxFiles: 5,
+  }));
+}
 
 // Add console transport for development
 if (process.env.NODE_ENV !== 'production') {
@@ -117,18 +122,20 @@ logger.performance = (message, data = {}) => {
   });
 };
 
-// Error handler for uncaught exceptions
-logger.exceptions.handle(
-  new winston.transports.File({ 
-    filename: path.join(logDir, 'exceptions.log') 
-  })
-);
+// Error handler for uncaught exceptions (only in development)
+if (process.env.NODE_ENV !== 'production' && logDir) {
+  logger.exceptions.handle(
+    new winston.transports.File({ 
+      filename: path.join(logDir, 'exceptions.log') 
+    })
+  );
 
-// Error handler for unhandled promise rejections
-logger.rejections.handle(
-  new winston.transports.File({ 
-    filename: path.join(logDir, 'rejections.log') 
-  })
-);
+  // Error handler for unhandled promise rejections
+  logger.rejections.handle(
+    new winston.transports.File({ 
+      filename: path.join(logDir, 'rejections.log') 
+    })
+  );
+}
 
 module.exports = logger;
