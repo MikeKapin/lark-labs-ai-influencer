@@ -99,6 +99,7 @@ app.listen(PORT, async () => {
   console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV}`);
   console.log(`🔗 DATABASE_URL: ${process.env.DATABASE_URL ? 'SET' : 'MISSING'}`);
   console.log(`🎬 Video content generation routes loaded`);
+  console.log(`🌐 CORS enabled for all origins (testing mode)`);
   
   try {
     // Initialize database connection
