@@ -19,6 +19,24 @@ const router = express.Router();
  */
 
 /**
+ * GET /api/social/status
+ * Check social media integration status
+ */
+router.get('/status', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Social media routes are working',
+    timestamp: new Date().toISOString(),
+    available_platforms: ['youtube', 'linkedin', 'facebook'],
+    oauth_status: {
+      youtube: 'setup_required',
+      linkedin: 'setup_required',
+      facebook: 'not_implemented'
+    }
+  });
+});
+
+/**
  * POST /api/social/test-post
  * Test posting without OAuth - shows what would be posted
  */
