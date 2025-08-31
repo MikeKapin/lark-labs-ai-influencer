@@ -221,8 +221,8 @@ router.get('/youtube/callback', async (req, res) => {
 
     // Store tokens securely (you might want to encrypt these)
     await database.query(
-      'INSERT INTO system_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
-      ['youtube_access_token', JSON.stringify(tokens)]
+      'INSERT INTO system_config (config_key, config_value, description) VALUES ($1, $2, $3) ON CONFLICT (config_key) DO UPDATE SET config_value = $2, updated_at = NOW()',
+      ['youtube_access_token', JSON.stringify(tokens), 'YouTube OAuth access tokens']
     );
 
     logger.socialMedia('YouTube OAuth completed successfully', { 
@@ -327,8 +327,8 @@ router.get('/linkedin/callback', async (req, res) => {
 
     // Store token securely
     await database.query(
-      'INSERT INTO system_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
-      ['linkedin_access_token', access_token]
+      'INSERT INTO system_config (config_key, config_value, description) VALUES ($1, $2, $3) ON CONFLICT (config_key) DO UPDATE SET config_value = $2, updated_at = NOW()',
+      ['linkedin_access_token', JSON.stringify({ access_token }), 'LinkedIn OAuth access token']
     );
 
     logger.socialMedia('LinkedIn OAuth completed successfully', { hasAccessToken: !!access_token });
