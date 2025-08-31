@@ -163,7 +163,7 @@ const Engagement = () => {
             <div>
               <p className="text-sm text-gray-600">Avg Response Time</p>
               <p className="text-2xl font-bold text-gray-900">{engagementStats.avgResponseTime || 0}h</p>
-              <p className="text-xs text-green-600">Target: <2h</p>
+              <p className="text-xs text-green-600">Target: &lt;2h</p>
             </div>
             <Clock className="h-8 w-8 text-purple-600" />
           </div>
