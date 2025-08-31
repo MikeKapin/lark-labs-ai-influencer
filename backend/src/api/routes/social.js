@@ -4,12 +4,162 @@ const axios = require('axios');
 const database = require('../../database/connection');
 const logger = require('../../utils/logger');
 
+// OAuth setup
+const oauth2Client = new google.auth.OAuth2(
+  process.env.YOUTUBE_CLIENT_ID,
+  process.env.YOUTUBE_CLIENT_SECRET,
+  `${process.env.RAILWAY_STATIC_URL || 'https://web-production-7385b.up.railway.app'}/api/social/youtube/callback`
+);
+
 const router = express.Router();
 
 /**
  * Social Media Publishing Routes
  * Handles YouTube, LinkedIn, and Facebook content publishing
  */
+
+/**
+ * GET /api/social/youtube/auth
+ * Start YouTube OAuth flow
+ */
+router.get('/youtube/auth', (req, res) => {
+  const scopes = [
+    'https://www.googleapis.com/auth/youtube.upload',
+    'https://www.googleapis.com/auth/youtube.force-ssl'
+  ];
+
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    prompt: 'consent'
+  });
+
+  logger.socialMedia('YouTube OAuth flow started', { authUrl });
+  res.redirect(authUrl);
+});
+
+/**
+ * GET /api/social/youtube/callback
+ * Handle YouTube OAuth callback
+ */
+router.get('/youtube/callback', async (req, res) => {
+  const { code, error } = req.query;
+
+  if (error) {
+    logger.error('YouTube OAuth error:', error);
+    return res.status(400).json({
+      success: false,
+      error: 'YouTube authorization failed',
+      details: error
+    });
+  }
+
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    // Store tokens securely (you might want to encrypt these)
+    await database.query(
+      'INSERT INTO system_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
+      ['youtube_access_token', JSON.stringify(tokens)]
+    );
+
+    logger.socialMedia('YouTube OAuth completed successfully', { 
+      hasAccessToken: !!tokens.access_token,
+      hasRefreshToken: !!tokens.refresh_token 
+    });
+
+    res.json({
+      success: true,
+      message: 'YouTube authorization completed successfully!',
+      tokens: {
+        access_token: tokens.access_token ? 'SET' : null,
+        refresh_token: tokens.refresh_token ? 'SET' : null
+      }
+    });
+
+  } catch (error) {
+    logger.error('YouTube token exchange failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to exchange authorization code for tokens',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/social/linkedin/auth
+ * Start LinkedIn OAuth flow
+ */
+router.get('/linkedin/auth', (req, res) => {
+  const scopes = ['openid', 'profile', 'w_member_social'];
+  const state = Math.random().toString(36).substring(7); // Simple state for security
+
+  const authUrl = `https://www.linkedin.com/oauth/v2/authorization?` +
+    `response_type=code&` +
+    `client_id=${process.env.LINKEDIN_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent('https://web-production-7385b.up.railway.app/api/social/linkedin/callback')}&` +
+    `state=${state}&` +
+    `scope=${encodeURIComponent(scopes.join(' '))}`;
+
+  logger.socialMedia('LinkedIn OAuth flow started', { authUrl, state });
+  res.redirect(authUrl);
+});
+
+/**
+ * GET /api/social/linkedin/callback
+ * Handle LinkedIn OAuth callback
+ */
+router.get('/linkedin/callback', async (req, res) => {
+  const { code, error, state } = req.query;
+
+  if (error) {
+    logger.error('LinkedIn OAuth error:', error);
+    return res.status(400).json({
+      success: false,
+      error: 'LinkedIn authorization failed',
+      details: error
+    });
+  }
+
+  try {
+    // Exchange code for access token
+    const tokenResponse = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', {
+      grant_type: 'authorization_code',
+      code: code,
+      client_id: process.env.LINKEDIN_CLIENT_ID,
+      client_secret: process.env.LINKEDIN_CLIENT_SECRET,
+      redirect_uri: 'https://web-production-7385b.up.railway.app/api/social/linkedin/callback'
+    }, {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
+    const { access_token } = tokenResponse.data;
+
+    // Store token securely
+    await database.query(
+      'INSERT INTO system_config (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()',
+      ['linkedin_access_token', access_token]
+    );
+
+    logger.socialMedia('LinkedIn OAuth completed successfully', { hasAccessToken: !!access_token });
+
+    res.json({
+      success: true,
+      message: 'LinkedIn authorization completed successfully!',
+      access_token: access_token ? 'SET' : null
+    });
+
+  } catch (error) {
+    logger.error('LinkedIn token exchange failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to exchange authorization code for tokens',
+      message: error.message
+    });
+  }
+});
 
 // YouTube API setup
 const youtube = google.youtube({
