@@ -452,6 +452,37 @@ router.post('/youtube/upload', async (req, res) => {
 });
 
 /**
+ * POST /api/social/linkedin/test-simple
+ * Simple LinkedIn posting test without database dependencies
+ */
+router.post('/linkedin/test-simple', async (req, res) => {
+  try {
+    const { text = "🔧 LARK Labs LinkedIn Integration Test! This is a simple test post from our HVAC AI system. #HVAC #LARKLabs #TestPost" } = req.body;
+
+    // Mock successful LinkedIn post for immediate testing
+    const mockPost = {
+      success: true,
+      platform: 'linkedin',
+      post_id: `TEST_LI_${Date.now()}`,
+      url: `https://linkedin.com/posts/test-${Date.now()}`,
+      message: 'LinkedIn integration test completed successfully!',
+      text_preview: text.substring(0, 100) + '...',
+      timestamp: new Date().toISOString(),
+      note: 'This is a test response. Real LinkedIn posting will be enabled once debugging is complete.'
+    };
+
+    res.json(mockPost);
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'LinkedIn test failed',
+      message: error.message
+    });
+  }
+});
+
+/**
  * POST /api/social/linkedin/post
  * Post content to LinkedIn
  */
