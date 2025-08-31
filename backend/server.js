@@ -102,6 +102,7 @@ app.listen(PORT, async () => {
   console.log(`📍 Working directory: ${process.cwd()}`);
   console.log(`🔧 NODE_ENV: ${process.env.NODE_ENV}`);
   console.log(`🔗 DATABASE_URL: ${process.env.DATABASE_URL ? 'SET' : 'MISSING'}`);
+  console.log(`🎬 Video content generation routes loaded`);
   
   try {
     // Initialize database connection
