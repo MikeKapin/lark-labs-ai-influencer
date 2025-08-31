@@ -19,6 +19,59 @@ const router = express.Router();
  */
 
 /**
+ * POST /api/social/test-post
+ * Test posting without OAuth - shows what would be posted
+ */
+router.post('/test-post', async (req, res) => {
+  try {
+    const { platform, content, title, description } = req.body;
+
+    // Mock posting functionality
+    const mockPost = {
+      platform: platform,
+      content: content || 'Test HVAC educational content from LARK Labs AI Influencer',
+      title: title || 'HVAC Safety Tips from Alex Reid',
+      description: description || 'Learn essential HVAC safety practices with LARK Labs',
+      timestamp: new Date().toISOString(),
+      status: 'MOCK_SUCCESS',
+      message: `This would be posted to ${platform} when OAuth is configured`
+    };
+
+    // Store mock post in database
+    await database.create('content_calendar', {
+      topic: title || 'Mock HVAC Content',
+      content_type: 'safety',
+      status: 'ready',
+      script: content || 'Mock educational content about HVAC safety and best practices.',
+      target_audience: 'hvac_technicians',
+      canadian_specific: true,
+      safety_related: true,
+      difficulty_level: 2,
+      ai_model_used: 'claude-sonnet-4',
+      generation_prompt: 'Mock content generation for testing',
+      date: new Date().toISOString().split('T')[0]
+    });
+
+    logger.socialMedia('Mock post created', mockPost);
+
+    res.json({
+      success: true,
+      message: 'Mock post created successfully',
+      post: mockPost,
+      note: 'This is a test post. Real posting requires OAuth configuration.'
+    });
+
+  } catch (error) {
+    logger.error('Mock post creation failed:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create mock post',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/social/setup-help
  * Shows exact OAuth setup instructions
  */
