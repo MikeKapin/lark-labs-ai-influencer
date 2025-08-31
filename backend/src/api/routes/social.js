@@ -140,8 +140,8 @@ router.get('/youtube/auth', (req, res) => {
     const redirectUri = `${baseUrl}/api/social/youtube/callback`;
     
     const scopes = [
-      'https://www.googleapis.com/auth/youtube.upload',
-      'https://www.googleapis.com/auth/youtube.force-ssl'
+      'https://www.googleapis.com/auth/youtube.readonly',
+      'https://www.googleapis.com/auth/youtube'
     ];
 
     const authUrl = oauth2Client.generateAuthUrl({
