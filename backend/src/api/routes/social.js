@@ -4,11 +4,10 @@ const axios = require('axios');
 const database = require('../../database/connection');
 const logger = require('../../utils/logger');
 
-// OAuth setup
+// OAuth setup - Create client without redirect URI to avoid conflicts
 const oauth2Client = new google.auth.OAuth2(
   process.env.YOUTUBE_CLIENT_ID,
-  process.env.YOUTUBE_CLIENT_SECRET,
-  `${process.env.RAILWAY_STATIC_URL || 'https://web-production-7385b.up.railway.app'}/api/social/youtube/callback`
+  process.env.YOUTUBE_CLIENT_SECRET
 );
 
 const router = express.Router();
@@ -148,7 +147,8 @@ router.get('/youtube/auth', (req, res) => {
     const authUrl = oauth2Client.generateAuthUrl({
       access_type: 'offline',
       scope: scopes,
-      prompt: 'consent'
+      prompt: 'consent',
+      redirect_uri: redirectUri
     });
 
     res.json({
@@ -198,7 +198,18 @@ router.get('/youtube/callback', async (req, res) => {
   }
 
   try {
-    const { tokens } = await oauth2Client.getToken(code);
+    // Set redirect URI for token exchange
+    const baseUrl = process.env.RAILWAY_STATIC_URL || 'https://web-production-7385b.up.railway.app';
+    const redirectUri = `${baseUrl}/api/social/youtube/callback`;
+    
+    // Create a new OAuth client with the correct redirect URI for token exchange
+    const tokenExchangeClient = new google.auth.OAuth2(
+      process.env.YOUTUBE_CLIENT_ID,
+      process.env.YOUTUBE_CLIENT_SECRET,
+      redirectUri
+    );
+    
+    const { tokens } = await tokenExchangeClient.getToken(code);
     oauth2Client.setCredentials(tokens);
 
     // Store tokens securely (you might want to encrypt these)
