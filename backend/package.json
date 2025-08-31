@@ -4,8 +4,8 @@
   "description": "Backend API for LARK Labs AI Influencer System",
   "main": "server.js",
   "scripts": {
-    "start": "node server-minimal.js",
-    "start:full": "node server.js",
+    "start": "node server.js",
+    "start:minimal": "node server-minimal.js",
     "dev": "nodemon server.js",
     "build": "echo 'No build step required'",
     "test": "jest --detectOpenHandles",
