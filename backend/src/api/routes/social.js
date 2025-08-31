@@ -190,16 +190,34 @@ router.get('/youtube/callback', async (req, res) => {
 router.get('/linkedin/auth', (req, res) => {
   const scopes = ['openid', 'profile', 'w_member_social'];
   const state = Math.random().toString(36).substring(7); // Simple state for security
+  const redirectUri = 'https://web-production-7385b.up.railway.app/api/social/linkedin/callback';
 
   const authUrl = `https://www.linkedin.com/oauth/v2/authorization?` +
     `response_type=code&` +
     `client_id=${process.env.LINKEDIN_CLIENT_ID}&` +
-    `redirect_uri=${encodeURIComponent('https://web-production-7385b.up.railway.app/api/social/linkedin/callback')}&` +
+    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
     `state=${state}&` +
     `scope=${encodeURIComponent(scopes.join(' '))}`;
 
-  logger.socialMedia('LinkedIn OAuth flow started', { authUrl, state });
-  res.redirect(authUrl);
+  logger.socialMedia('LinkedIn OAuth flow started', { authUrl, state, redirectUri });
+  
+  // Instead of redirecting, show the auth URL and instructions
+  res.json({
+    success: true,
+    message: 'LinkedIn OAuth Setup Required',
+    auth_url: authUrl,
+    instructions: [
+      '1. First, add this redirect URI to your LinkedIn app:',
+      redirectUri,
+      '2. Go to LinkedIn Developer Portal → Your App → Auth tab',
+      '3. Add the redirect URI above to "Authorized redirect URLs"', 
+      '4. Save changes in LinkedIn',
+      '5. Then click the auth_url below to authorize:',
+      authUrl
+    ],
+    redirect_uri_needed: redirectUri,
+    linkedin_developer_portal: 'https://www.linkedin.com/developers/apps'
+  });
 });
 
 /**
